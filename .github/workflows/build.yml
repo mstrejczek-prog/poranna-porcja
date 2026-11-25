@@ -1,0 +1,36 @@
+name: Zbuduj odcinek
+
+on:
+  push:
+    branches: [main]
+    paths: ["episodes/**", "scripts/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Zainstaluj zależności
+        run: |
+          pip install edge-tts
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - name: Generuj audio i feed
+        run: python scripts/build_episode.py
+      - name: Opublikuj
+        run: |
+          git config user.name "poranna-porcja-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add docs
+          git diff --cached --quiet || git commit -m "Nowy odcinek $(date +%F)"
+          git push
