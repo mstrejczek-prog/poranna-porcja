@@ -23,6 +23,10 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
+import base64
+import json
+import urllib.request
+
 import edge_tts
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -36,8 +40,8 @@ VOICES = {
     "MAREK": "pl-PL-MarekNeural",
     "ZOFIA": "pl-PL-ZofiaNeural",
 }
-PAUSE_SAME = 0.25   # pauza między kwestiami tej samej osoby (s)
-PAUSE_SWITCH = 0.45  # pauza przy zmianie mówiącego (s)
+PAUSE_SAME = 0.12   # pauza między kwestiami tej samej osoby (s)
+PAUSE_SWITCH = 0.25  # pauza przy zmianie mówiącego (s)
 
 
 def parse(md_path: Path):
@@ -63,7 +67,7 @@ def parse(md_path: Path):
 async def tts(text: str, voice: str, out: Path, retries: int = 3):
     for attempt in range(retries):
         try:
-            await edge_tts.Communicate(text, voice, rate="+5%").save(str(out))
+            await edge_tts.Communicate(text, voice, rate="+22%").save(str(out))
             if out.stat().st_size > 0:
                 return
         except Exception as e:  # noqa: BLE001
@@ -92,6 +96,81 @@ async def build_audio(lines, out_mp3: Path):
                 parts.append(s_switch if who != prev else s_same)
             parts.append(seg)
             prev = who
+        listfile = tmp / "list.txt"
+        listfile.write_text("".join(f"file '{p}'\n" for p in parts), encoding="utf-8")
+        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0",
+                        "-i", str(listfile), "-ac", "1", "-ar", "24000", "-b:a", "64k",
+                        str(out_mp3)], check=True)
+
+
+# --- Gemini TTS (naturalna rozmowa dwóch głosów). Używane, gdy ustawiony jest GEMINI_API_KEY. ---
+GEMINI_MODELS = ["gemini-3.1-flash-tts-preview", "gemini-2.5-flash-preview-tts"]
+GEMINI_VOICES = {"ZOFIA": "Kore", "MAREK": "Charon"}
+GEMINI_STYLE = ("Odczytaj po polsku poniższą rozmowę dwojga prowadzących poranny podcast. "
+                "Mówią naturalnie, ciepło i z zaangażowaniem, w żywym, dość szybkim tempie, "
+                "jak dwoje znajomych, którzy lubią te tematy. Bez długich pauz między kwestiami.")
+CHUNK_CHARS = 2500
+
+
+def chunks(lines):
+    out, cur, size = [], [], 0
+    for who, txt in lines:
+        if cur and size + len(txt) > CHUNK_CHARS:
+            out.append(cur)
+            cur, size = [], 0
+        cur.append((who, txt))
+        size += len(txt)
+    if cur:
+        out.append(cur)
+    return out
+
+
+def gemini_chunk(part, key, wav: Path):
+    convo = "\n".join(f"{who.capitalize()}: {txt}" for who, txt in part)
+    body = {
+        "contents": [{"parts": [{"text": f"{GEMINI_STYLE}\n\n{convo}"}]}],
+        "generationConfig": {
+            "responseModalities": ["AUDIO"],
+            "speechConfig": {"multiSpeakerVoiceConfig": {"speakerVoiceConfigs": [
+                {"speaker": name.capitalize(), "voiceConfig": {"prebuiltVoiceConfig": {"voiceName": v}}}
+                for name, v in GEMINI_VOICES.items()]}},
+        },
+    }
+    last = None
+    for model in GEMINI_MODELS:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+        req = urllib.request.Request(url, data=json.dumps(body).encode(), method="POST",
+                                     headers={"Content-Type": "application/json", "x-goog-api-key": key})
+        try:
+            with urllib.request.urlopen(req, timeout=300) as r:
+                data = json.load(r)
+            b64 = data["candidates"][0]["content"]["parts"][0]["inlineData"]["data"]
+            pcm = wav.with_suffix(".pcm")
+            pcm.write_bytes(base64.b64decode(b64))
+            subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "s16le", "-ar", "24000", "-ac", "1",
+                            "-i", str(pcm), str(wav)], check=True)
+            print(f"Gemini OK ({model}), {len(part)} kwestii")
+            return
+        except Exception as e:  # noqa: BLE001
+            detail = e.read().decode()[:300] if hasattr(e, "read") else str(e)
+            print(f"Gemini {model} błąd: {detail}", file=sys.stderr)
+            last = e
+    raise RuntimeError(f"Gemini TTS nie zadziałało: {last}")
+
+
+def build_audio_gemini(lines, out_mp3: Path, key: str):
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = Path(tmp)
+        parts = []
+        gap = tmp / "gap.wav"
+        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i",
+                        "anullsrc=r=24000:cl=mono", "-t", "0.4", str(gap)], check=True)
+        for i, part in enumerate(chunks(lines)):
+            wav = tmp / f"{i:03d}.wav"
+            gemini_chunk(part, key, wav)
+            if parts:
+                parts.append(gap)
+            parts.append(wav)
         listfile = tmp / "list.txt"
         listfile.write_text("".join(f"file '{p}'\n" for p in parts), encoding="utf-8")
         subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0",
@@ -158,6 +237,13 @@ def main():
             continue
         print(f"Generuję {md.name}")
         _, lines = parse(md)
+        key = os.environ.get("GEMINI_API_KEY", "").strip()
+        if key:
+            try:
+                build_audio_gemini(lines, out, key)
+                continue
+            except Exception as e:  # noqa: BLE001
+                print(f"Gemini niedostępne, przechodzę na głosy Edge: {e}", file=sys.stderr)
         asyncio.run(build_audio(lines, out))
     build_feed()
 
