@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+  <channel>
+    <title>Poranna porcja</title>
+    <link>https://mstrejczek-prog.github.io/poranna-porcja/</link>
+    <language>pl</language>
+    <description>Codzienny, prywatny podcast: architektura, triathlon, biznes, giełda, sztuka, geopolityka, technologie, wynalazki i podróże.</description>
+    <itunes:author>Poranna porcja</itunes:author>
+    <itunes:image href="https://mstrejczek-prog.github.io/poranna-porcja/cover.png"/>
+    <itunes:explicit>false</itunes:explicit>
+    <itunes:block>Yes</itunes:block>
+    <itunes:category text="Education"/>
+    <item>
+      <title>Ormuz, nerwowa giełda, Sagrada Família, narodziny Ironmana i rzep</title>
+      <description>Odcinek 1. Największy kryzys energetyczny w historii, nerwowy listopad na Wall Street, najwyższy kościół świata, zakład, z którego powstał Ironman, i spacer z psem, który dał nam rzep.</description>
+      <enclosure url="https://mstrejczek-prog.github.io/poranna-porcja/episodes/2026-11-25.mp3" length="2884076" type="audio/mpeg"/>
+      <guid isPermaLink="false">poranna-porcja-2026-11-25</guid>
+      <pubDate>Wed, 25 Nov 2026 05:00:00 +0000</pubDate>
+      <itunes:duration>6:00</itunes:duration>
+      <itunes:explicit>false</itunes:explicit>
+    </item>
+  </channel>
+</rss>
