@@ -11,6 +11,15 @@
     <itunes:block>Yes</itunes:block>
     <itunes:category text="Education"/>
     <item>
+      <title>Wojna w Libii, wolta na Wall Street, satelity Muska, Van Gogh za rekord i Matera</title>
+      <description>Odcinek 2. Ukraińskie drony aż w Libii, giełda, która odrobiła ponad tysiąc punktów, milion satelitarnych centrów danych, kasztanowce Van Gogha za prawie dwieście milionów dolarów i miasto, które ze wstydu stało się perłą.</description>
+      <enclosure url="https://mstrejczek-prog.github.io/poranna-porcja/episodes/2026-11-26.mp3" length="3643628" type="audio/mpeg"/>
+      <guid isPermaLink="false">poranna-porcja-2026-11-26</guid>
+      <pubDate>Thu, 26 Nov 2026 05:00:00 +0000</pubDate>
+      <itunes:duration>7:35</itunes:duration>
+      <itunes:explicit>false</itunes:explicit>
+    </item>
+    <item>
       <title>Ormuz, nerwowa giełda, Sagrada Família, narodziny Ironmana i rzep</title>
       <description>Odcinek 1. Największy kryzys energetyczny w historii, nerwowy listopad na Wall Street, najwyższy kościół świata, zakład, z którego powstał Ironman, i spacer z psem, który dał nam rzep.</description>
       <enclosure url="https://mstrejczek-prog.github.io/poranna-porcja/episodes/2026-11-25.mp3" length="2576684" type="audio/mpeg"/>
